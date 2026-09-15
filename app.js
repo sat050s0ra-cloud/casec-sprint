@@ -67,6 +67,11 @@ function dayStreak(){
   while(days.has(d.toDateString())){count++; d.setDate(d.getDate()-1)}
   return count;
 }
+function dailyIndex(length){
+  const now=new Date();
+  const localMidnight=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+  return Math.floor(localMidnight/86400000)%length;
+}
 function saveDone(kind){
   const date=new Date().toDateString();
   progress.done++; progress.dates=[...new Set([...(progress.dates||[]),date])];
@@ -86,10 +91,10 @@ function renderCalendar(){
 function render(){
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.mode===mode));
   if(mode==='calendar'){renderCalendar();return}
-  const todayIndex=Math.floor(Date.now()/86400000)%lessons.passages.length;
-  const item=lessons[mode][mode==='passages'?todayIndex:index%lessons[mode].length];
+  const itemIndex=(dailyIndex(lessons[mode].length)+index)%lessons[mode].length;
+  const item=lessons[mode][itemIndex];
   if(mode==='listen'){
-    practice.innerHTML=`<p class="question-type">LISTEN FOR THE DETAIL / ${String(index%3+1).padStart(2,'0')}</p><p class="prompt">${item.text}</p><div class="audio-row"><button class="play" aria-label="英文を再生">▶</button><span class="hint">最初は文字を見ずに。必要なら何度でも。</span></div><div class="voice-controls"><label>声 <select id="voice-select" aria-label="英語の声"></select></label><label>速度 <select id="rate-select" aria-label="再生速度"><option value="0.72">ゆっくり</option><option value="0.82">聞きやすい</option><option value="0.94">標準</option></select></label></div><div class="choices">${item.answers.map((a,i)=>`<button class="choice" data-i="${i}">${a}</button>`).join('')}</div><div class="feedback" hidden></div>`;
+    practice.innerHTML=`<p class="question-type">DAILY LISTENING / ${String(itemIndex+1).padStart(2,'0')}</p><p class="prompt">${item.text}</p><div class="audio-row"><button class="play" aria-label="英文を再生">▶</button><span class="hint">最初は文字を見ずに。必要なら何度でも。</span></div><div class="voice-controls"><label>声 <select id="voice-select" aria-label="英語の声"></select></label><label>速度 <select id="rate-select" aria-label="再生速度"><option value="0.72">ゆっくり</option><option value="0.82">聞きやすい</option><option value="0.94">標準</option></select></label></div><div class="choices">${item.answers.map((a,i)=>`<button class="choice" data-i="${i}">${a}</button>`).join('')}</div><div class="feedback" hidden></div>`;
     practice.querySelector('.play').onclick=()=>speak(item.say);
     renderVoiceControls();
     practice.querySelectorAll('.choice').forEach(btn=>btn.onclick=()=>{
@@ -99,7 +104,7 @@ function render(){
       const n=document.createElement('button');n.className='next';n.textContent='次の問題 →';n.onclick=next;practice.append(n);
     });
   }else if(mode==='travel'){
-    practice.innerHTML=`<p class="question-type">TRAVEL CONVERSATION / ${item.scene}</p><p class="prompt">${item.prompt}</p><div class="audio-row"><button class="play" aria-label="会話を再生">▶</button><span class="hint">まずは文字を見ずに聞いて、必要なら繰り返しましょう。</span></div><div class="voice-controls"><label>声 <select id="voice-select" aria-label="英語の声"></select></label><label>速度 <select id="rate-select" aria-label="再生速度"><option value="0.72">ゆっくり</option><option value="0.82">聞きやすい</option><option value="0.94">標準</option></select></label></div><div class="choices">${item.answers.map((a,i)=>`<button class="choice" data-i="${i}">${a}</button>`).join('')}</div><div class="feedback" hidden></div>`;
+    practice.innerHTML=`<p class="question-type">DAILY TRAVEL CONVERSATION / ${item.scene}</p><p class="prompt">${item.prompt}</p><div class="audio-row"><button class="play" aria-label="会話を再生">▶</button><span class="hint">まずは文字を見ずに聞いて、必要なら繰り返しましょう。</span></div><div class="voice-controls"><label>声 <select id="voice-select" aria-label="英語の声"></select></label><label>速度 <select id="rate-select" aria-label="再生速度"><option value="0.72">ゆっくり</option><option value="0.82">聞きやすい</option><option value="0.94">標準</option></select></label></div><div class="choices">${item.answers.map((a,i)=>`<button class="choice" data-i="${i}">${a}</button>`).join('')}</div><div class="feedback" hidden></div>`;
     practice.querySelector('.play').onclick=()=>speak(item.say);
     renderVoiceControls();
     practice.querySelectorAll('.choice').forEach(btn=>btn.onclick=()=>{const chosen=+btn.dataset.i,all=practice.querySelectorAll('.choice');all.forEach(x=>x.disabled=true);btn.classList.add(chosen===item.correct?'correct':'wrong');all[item.correct].classList.add('correct');const f=practice.querySelector('.feedback');f.hidden=false;f.innerHTML=`<b>${chosen===item.correct?'Great! 正解です。':'ここを聞き違えました。'}</b><br>${chosen===item.correct?item.note:item.wrong[chosen]}<div class="transcript"><b>会話全文</b><br>${item.transcript}</div>`;saveDone('旅の会話');const n=document.createElement('button');n.className='next';n.textContent='次の会話 →';n.onclick=next;practice.append(n)});
@@ -110,7 +115,7 @@ function render(){
     practice.querySelector('#read-done').onclick=e=>{saveDone('読む');e.currentTarget.textContent='今日の学習を記録しました ✓';e.currentTarget.disabled=true};
   }else{
     const examples=item.examples||[item.example];
-    practice.innerHTML=`<p class="question-type">${mode==='words'?'VOCABULARY / COLLOCATION':'USEFUL EXPRESSION'} / ${String(index%3+1).padStart(2,'0')}</p><div class="word-card"><p class="word">${item.word}</p><p class="meaning">${item.meaning}</p><div class="examples">${examples.map((example,i)=>`<div class="example"><b>${i+1}.</b> ${typeof example==='string'?example:example.en}<button class="example-play" data-i="${i}" aria-label="例文${i+1}を読み上げる">▶</button>${typeof example==='string'?'':`<small class="example-translation">${example.ja}</small>`}</div>`).join('')}</div><p class="feedback"><b>覚え方</b><br>${item.tip}</p></div><div class="actions"><button class="action" id="again">まだ練習する</button><button class="action good" id="got-it">覚えた ✓</button></div>`;
+    practice.innerHTML=`<p class="question-type">DAILY ${mode==='words'?'VOCABULARY / COLLOCATION':'USEFUL EXPRESSION'} / ${String(itemIndex+1).padStart(2,'0')}</p><div class="word-card"><p class="word">${item.word}</p><p class="meaning">${item.meaning}</p><div class="examples">${examples.map((example,i)=>`<div class="example"><b>${i+1}.</b> ${typeof example==='string'?example:example.en}<button class="example-play" data-i="${i}" aria-label="例文${i+1}を読み上げる">▶</button>${typeof example==='string'?'':`<small class="example-translation">${example.ja}</small>`}</div>`).join('')}</div><p class="feedback"><b>覚え方</b><br>${item.tip}</p></div><div class="actions"><button class="action" id="again">まだ練習する</button><button class="action good" id="got-it">覚えた ✓</button></div>`;
     practice.querySelectorAll('.example-play').forEach(button=>button.onclick=()=>{const example=examples[Number(button.dataset.i)];speak(typeof example==='string'?example:example.en)});
     document.querySelector('#again').onclick=next; document.querySelector('#got-it').onclick=()=>{saveDone(mode==='words'?'語彙':'表現');next()};
   }
